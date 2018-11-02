@@ -1,0 +1,477 @@
+# -*- coding: utf-8 -*-
+'''
+Multiscale Entropic Topology Replicator: MuSkETeeR
+
+Copyright (c) 2011-2012 by Alexander Gutfraind and Ilya Safro. 
+All rights reserved.
+
+Use and redistribution of this file is governed by the license terms in
+the LICENSE file found in the project's top-level directory.
+
+
+Code to assist the generator
+
+
+'''
+
+import os
+import time
+import numpy as np
+import numpy.random as npr
+import random, sys
+import networkx as nx
+import matplotlib
+#matplotlib.use('PDF')
+#import matplotlib.pylab as pylab
+import pylab
+import pdb
+import cPickle
+import algorithms
+import community
+
+np.seterr(all='raise')
+
+timeNow = lambda : time.strftime('%Y_%m_%d__%H_%M_%S', time.localtime())
+
+default_metrics = []
+default_metrics += [{'name':'num nodes',          'weight':1, 'optional':0, 'practical_node_limit': np.inf, 'function':lambda G: nx.number_of_nodes(G)}]
+default_metrics += [{'name':'density',            'weight':1, 'optional':2, 'practical_node_limit': np.inf, 'function':lambda G: nx.density(G)}]
+default_metrics += [{'name':'num edges',          'weight':1, 'optional':0, 'practical_node_limit': np.inf, 'function':lambda G: nx.number_of_edges(G)}]
+default_metrics += [{'name':'clustering',         'weight':1, 'optional':0, 'practical_node_limit': np.inf, 'function':lambda G: nx.average_clustering(G)}]
+default_metrics += [{'name':'average degree',     'weight':1, 'optional':0, 'practical_node_limit': np.inf, 'function':lambda G: np.average(nx.degree(G).values())}]
+default_metrics += [{'name':'s-metric',           'weight':1, 'optional':0, 'practical_node_limit': np.inf, 'function':lambda G: nx.s_metric(G, normalized=True)}]
+default_metrics += [{'name':'mean_ecc',           'weight':1, 'optional':0, 'practical_node_limit': np.inf, 'function':lambda G: np.average(nx.eccentricity(G).values())}]
+default_metrics += [{'name':'num_comps',          'weight':1, 'optional':0, 'practical_node_limit': np.inf, 'function':lambda G: nx.number_connected_components(G)}]
+#default_metrics += [{'name':'L eigenvalue sum',   'weight':1, 'optional':0, 'practical_node_limit': np.inf, 'function':lambda G: sum(nx.spectrum.laplacian_spectrum(G)).real}]
+#default_metrics += [{'name':'average shortest path',   'weight':1, 'optional':0, 'practical_node_limit': np.inf, 'function':lambda G: average_all_pairs_shortest_path(G)}]
+default_metrics += [{'name':'avg flow closeness',   'weight':1, 'optional':0, 'practical_node_limit': np.inf, 'function':lambda G: average_flow_closeness(G)}]
+default_metrics += [{'name':'avg eigvec centrality',   'weight':1, 'optional':0, 'practical_node_limit': np.inf, 'function':lambda G: average_eigenvector_centrality(G)}]
+default_metrics += [{'name':'modularity',          'weight':1, 'optional':0, 'practical_node_limit': np.inf, 'function':lambda G: community.louvain_modularity(G)}]
+
+#optional runs from 0 (always used) to 5 (never)
+
+def average_all_pairs_shortest_path(G):
+  if nx.number_connected_components(G)>1:
+    return 0
+  else:
+    p=nx.shortest_path_length(G)
+#    length=nx.all_pairs_shortest_path_length(G)
+#    sum = 0.0
+#    count = 1.0
+#    samples = int(G.number_of_nodes()*0.2)
+#    for i in range(samples):
+#      key1 = random.choice(G.number_of_nodes()-1)
+#      print key1, "\n"
+#      key2 = random.choice(G.number_of_nodes()-1)
+#      key1 = random.choice(length.keys())
+#      key2 = random.choice(length[key1].keys())
+#    for key1 in length.keys():
+#      for key2 in length[key1].keys():
+#      sum = sum + p[key1][key2]
+#      count = count + 1
+#    return sum/count
+
+def average_flow_closeness(G):
+  if nx.number_connected_components(G)>1:
+    return 0
+  else:
+    length=nx.algorithms.current_flow_closeness_centrality(G)
+    sum = 0.0
+    count = 0.0
+    for key1 in length.keys():
+      sum = sum + length[key1]
+      count = count + 1
+    return sum/count
+
+def average_eigenvector_centrality(G):
+  if nx.number_connected_components(G)>1:
+    return 0
+  else:
+    length=nx.algorithms.eigenvector_centrality(G, 500, 0.0001)
+    sum = 0.0
+    count = 0.0
+    for key1 in length.keys():
+      sum = sum + length[key1]
+      count = count + 1
+    return sum/count
+
+def algebraic_distance(G, params={}):
+    '''
+    takes: graph G, computational parameters
+
+    returns:
+    a distance dictionary, d[node1][node2]  giving the distance between the nodes
+
+    ref:
+            RELAXATION-BASED COARSENING AND
+            MULTISCALE GRAPH ORGANIZATION
+            DORIT RON, ILYA SAFRO, AND ACHI BRANDT
+
+    this code is not currently used in the main generator algorithm
+
+    wishlist: use sparse matrices
+    '''
+
+    H = nx.convert_node_labels_to_integers(G, discard_old_labels=False)
+    metric              = params.get('metric', 'Linfinity')
+    num_relaxations_r   = params.get('num_relaxations_r', 10)
+    num_test_vectors_K  = params.get('num_test_vectors_K', 20)
+    lazy_walk_param_w   = params.get('lazy_walk_param_w', 0.5)
+
+    if metric != 'Linfinity':
+        raise Exception('Metric other than Linifinity not implemented')
+
+    distance = {}
+    for node1 in H:
+        distance[node1] = {}
+        for node2 in H:
+            if node1 < node2: #save time
+               distance[node1][node2] = -np.inf
+
+    LAP      = nx.laplacian(H)
+    diag_vec = np.diag(LAP)
+    DIAG     = np.diag(diag_vec)
+    w_times_Dinv_times_D_minus_LAP = lazy_walk_param_w * np.dot(np.diag([1./el for el in diag_vec]),DIAG-LAP)
+
+    for t in xrange(num_test_vectors_K):
+        x = npr.rand(H.number_of_nodes(),1)
+
+        for iteration in xrange(num_relaxations_r):
+            x = (1-lazy_walk_param_w)*x + np.dot(w_times_Dinv_times_D_minus_LAP, x)
+
+        for node1 in H:
+            for node2 in H:
+                dis = abs(x[node1]-x[node2])[0]
+                if node1 < node2 and dis > distance[node1][node2]: #to save time, compute just the upper triangle of the matrix
+                    distance[node1][node2] = dis
+
+    #generate the distance dictionary in the original node labels, and including the diagonal and lower triangle
+    ret = {}
+    for u in G:
+        ret[u] = {}
+        for v in G:
+            node1 = H.node_labels[u]
+            node2 = H.node_labels[v]
+            if node1 < node2:
+                ret[u][v] = distance[node1][node2]
+            elif node1 > node2:
+                ret[u][v] = distance[node2][node1]
+            else:
+                ret[u][v] = 0.
+    return ret
+
+def bfs_distance_with_horizon(G, source, horizon=4, blocked_node=None):
+#computes distance from every node to every neighbor at distance at most <horizon> hops
+#    nodes further away are considered infinitely away
+#no path is allowed through blocked_node
+    fringe = G.neighbors(source)
+    distance_source  = {source:0}
+    for d in xrange(1, horizon+1):
+        new_fringe = []
+        for v in fringe:
+            if v not in distance_source and v!=blocked_node:
+                distance_source[v] = d
+                new_fringe += G.neighbors(v)
+        fringe = new_fringe
+
+    return distance_source
+
+
+
+def compare_nets(old_G, new_G, metrics=None, params={}):
+    '''
+    Report on the differences between two networks
+    '''
+    if metrics == None:
+        metrics = default_metrics
+    normalize = params.get('normalize', True)
+    verbose   = params.get('verbose', True)
+
+    errors = {}
+    if verbose: 
+        print 'Name\t\t\tOld G\tNew G\tWeighted Error'
+        print 'statistics start ------------------------------------------------------------'
+    for met_info in metrics:
+        met_name = met_info['name']
+        met_func = met_info['function']
+        met_wt = met_info['weight']
+        if met_info['optional'] > 0 or met_info['practical_node_limit'] < old_G.number_of_nodes():
+            continue
+        try:
+            old_value = met_func(old_G)
+            new_value = met_func(new_G)
+            error = met_wt*float(new_value-old_value)
+            if normalize:
+                error = error/max(old_value,new_value+1E-200)
+            if verbose: 
+                print '%s\t%.2f\t%.2f\t%.2f%%'%(met_name.center(20),old_value,new_value,100*error)
+            errors[met_name] = error
+        except Exception,inst:
+            print 'Warning: could not compute '+met_name + ': '+str(inst)
+    print 'statistics end ------------------------------------------------------------'
+    if verbose:
+        print 'Mean difference: %.2f%%'%100*np.average(errors.values())
+        return np.average(errors.values())
+    else:
+        return errors
+
+def graph_graph_delta(G, new_G, **kwargs):
+    new_nodes = []
+    del_nodes = []
+    new_edges = []
+    del_edges = []
+
+    for node in G:
+        if node not in new_G:
+            del_nodes.append(node)
+    for edge in G.edges():
+        if not new_G.has_edge(*edge):
+            del_edges.append(edge)
+
+    for node in new_G:
+        if node not in G:
+            new_nodes.append(node)
+    for edge in new_G.edges():
+        if not G.has_edge(*edge):
+            new_edges.append(edge)
+
+    return {'new_nodes':new_nodes, 'del_nodes':del_nodes, 'new_edges':new_edges, 'del_edges':del_edges}
+
+def load_graph(path, params={}, list_types_and_exit=False):
+    '''reads graph from path, using automatic detection of graph type
+    '''
+
+    loaders = {
+            'adjlist':nx.read_adjlist, 
+            'adjlist_implicit_prefix':read_adjlist_implicit_prefix, 
+            'graph6':nx.read_graph6, 
+            'shp':nx.read_shp, 
+            'dot':nx.read_dot, 
+            'graph6_list':nx.read_graph6_list,  
+            'sparse6':nx.read_sparse6, 
+            'edgelist':nx.read_edgelist, 
+            'graphml':nx.read_graphml,        
+            'sparse6_list':nx.read_sparse6_list, 
+            'gexf':nx.read_gexf,    
+            'leda':nx.read_leda,            
+            'weighted_edgelist':nx.read_weighted_edgelist,
+            'gml':nx.read_gml, 
+            'multiline_adjlist':nx.read_multiline_adjlist,
+            'yaml':nx.read_yaml,
+            'gpickle':nx.read_gpickle,           
+            'pajek':nx.read_pajek,}
+
+    known_extensions = {
+            'gml':'gml',
+            'edges':'edgelist',
+            'pajek':'pajek',}
+
+    if list_types_and_exit:
+        return loaders.keys()
+
+    def sane_graph(G, params={}):
+        if G.number_of_nodes() > 0:
+            return True
+        else:
+            return False
+
+    graph_type = params.get('graph_type', None)
+    read_params= params.get('read_params', {})
+    skip_sanity= params.get('skip_sanity', False)
+
+    if not os.path.exists(path):
+        raise ValueError, 'Path does not exist: %s'%path
+
+    if graph_type in loaders:
+        try:
+            G = loaders[graph_type](path=path, **read_params)
+            if sane_graph(G) or skip_sanity:
+                return G
+            else:
+                print 'Warning: Sanity test failed!'
+                print 'Attempting auto-detection of graph type.'
+                print
+                graph_type = None
+        except:
+            print 'Graph read error.'
+            raise
+
+    if graph_type != None:
+        raise Exception,'Unable to load graphs of type '+str(graph_type)
+
+    print 'Warning: Trying to auto-detect graph type'
+    extension_guess = os.path.splitext(path)[1][1:]
+    if extension_guess in known_extensions:
+        graph_type = known_extensions[extension_guess]
+        print 'Guessing type: '+str(graph_type)
+        try:
+            G = loaders[graph_type](path=path)
+            if sane_graph(G) or skip_sanity:
+                return G
+        except:
+            print 'Graph read error.'
+
+    G = None
+    for graph_type in loaders:
+        try:
+            G = loaders[graph_type](path=path)
+            if sane_graph(G) or skip_sanity:
+                break
+        except:
+            print '  Not: ' + str(graph_type)
+
+    if G != None:
+        print 'Successfully detected type: '+str(graph_type)
+        return G
+    else:
+        raise Exception, 'Could not load graph.  None of the available loaders succeeded.'
+
+def read_adjlist_implicit_prefix(path, create_using=None):
+    '''
+    reads network files formatted as:
+
+    "
+    15606 45878
+    2 3 6 7 
+    1 4 6 9 
+    "
+    and so on.
+    first line: num_nodes num_edges
+    second lines (and the rest of the lines in the file):
+    [implicit node = line number - 1] neighbor1 neighbor2 ... 
+    empty lines are degree=0 nodes
+    '''
+    
+    if create_using == None:
+        G = nx.Graph()
+    else:
+        G = create_using()
+
+    try:
+        with open(path, 'r') as file_handle:
+            header_data = file_handle.next().split(' ')
+            node_num = 1
+            for line in file_handle:
+                line = line.strip()
+                if line == '':
+                    G.add_node(node_num)
+                else:
+                    G.add_edges_from([(node_num,int(v)) for v in line.split(' ')])
+                node_num += 1
+    except Exception,inst:
+        if 'node_num' not in locals():
+            raise
+        raise IOError, 'Parse error on line %d'%(node_num+1)
+    
+    expected_num_nodes = int(header_data[0])
+    expected_num_edges = int(header_data[1])
+
+    if G.number_of_nodes() != expected_num_nodes or G.number_of_edges() != expected_num_edges:
+        raise IOError, 'Failed to correctly parse input file. Expected nn=%d,ne=%d; Read %d,%d'%(expected_num_nodes,expected_num_edges,G.number_of_nodes(),G.number_of_edges())
+
+    return G
+
+
+def test_algebraic_distance():
+    #test1: nodes nearby on the path graph should land nearby
+    print 'test1 ...'
+    G1 = nx.path_graph(10)
+    distance1 = algebraic_distance(G1)
+    true_distance1 = []
+    alg_distance1 = []
+    for node1 in G1:
+        for node2 in G1:
+            if node1 > node2:
+                continue
+            true_distance1.append(abs(node1-node2))
+            alg_distance1.append(distance1[node1][node2])
+
+    val1 = np.corrcoef(true_distance1, alg_distance1)[0,1]
+    print 'correlation: %.2f'%val1
+    assert val1 > 0.8
+    print 'passed.'
+
+    #test2: same for grid graph
+    G2=nx.grid_graph(dim=[10,10])
+    distance2 = algebraic_distance(G2)
+    true_distance2 = []
+    alg_distance2 = []
+    for node1 in G2:
+        for node2 in G2:
+            if node1 > node2:
+                continue
+            true_distance2.append(abs(node1[0]-node2[0]) + abs(node1[1]-node2[1]))
+            alg_distance2.append(distance2[node1][node2])
+
+    val2 = np.corrcoef(true_distance2, alg_distance2)[0,1]
+    print 'correlation: %.2f'%val2
+    assert val2 > 0.5
+    print 'passed.'
+
+def test_bfs():
+    G = nx.path_graph(5)
+    distances_path0 = bfs_distance_with_horizon(G, source=0, horizon=2)
+    assert distances_path0[0] == 0
+    assert distances_path0[1] == 1
+    assert distances_path0[2] == 2
+    assert 3 not in distances_path0
+    assert 4 not in distances_path0
+    distances_path1 = bfs_distance_with_horizon(G, source=1, horizon=2)
+    assert distances_path1[0] == 1     
+    assert distances_path1[1] == 0     
+    assert distances_path1[2] == 1     
+    assert distances_path1[3] == 2     
+    assert 4 not in distances_path1
+
+    ER100 = nx.erdos_renyi_graph(100, 0.02)
+    true_d       = nx.all_pairs_shortest_path_length(ER100)
+    cc1 = nx.connected_components(ER100)[0]
+    for node1 in cc1:
+        horizon_d_node1    = bfs_distance_with_horizon(ER100, source=node1, horizon=4)
+        horizon_dinf_node1 = bfs_distance_with_horizon(ER100, source=node1, horizon=1000)
+        for node2 in cc1:
+            if node2 in horizon_d_node1:
+                assert true_d[node1][node2] == horizon_d_node1[node2]
+            assert true_d[node1][node2] == horizon_dinf_node1[node2]
+    print 'Passed'
+
+def write_graph(G, path, params={}, list_types_and_exit=False):
+    '''reads graph from path, using automatic detection of graph type
+    '''
+
+    writers = {
+            'adjlist':nx.write_adjlist, 
+            'dot':nx.write_dot, 
+            'edgelist':nx.write_edgelist, 
+            'weighted_edgelist':nx.write_weighted_edgelist, 
+            'graphml':nx.write_graphml,        
+            'gml':nx.write_gml, 
+            'gpickle':nx.write_gpickle,           
+            'pajek':nx.write_pajek,
+            'yaml':nx.write_yaml}
+
+    if list_types_and_exit:
+        return writers.keys()
+
+    write_params = params.get('write_params', {})
+    skip_sanity  = params.get('skip_sanity', False)
+
+    graph_type = os.path.splitext(path)[1][1:]
+
+    if graph_type in writers:
+        try:
+            writers[graph_type](G=G, path=path, **write_params)
+        except Exception, inst:
+            print 'Graph write error:'
+            print inst
+
+            print 'Attempting to write to DOT format'
+            nx.write_dot(G, path)
+            print 'Done.'
+    else:
+        raise Exception,'Unable to write graphs of type: '+str(graph_type)
+
+
+if __name__ == '__main__': 
+    #test_algebraic_distance()
+    test_bfs()
