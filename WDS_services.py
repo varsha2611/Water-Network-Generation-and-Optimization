@@ -569,7 +569,7 @@ def has_solution(input_network,id=""):
 
         def __init__(self):
             super(my_mo_problem, self).__init__(self.nbOfPipes + 25 * self.nbOfPumps + 3 * self.nbOfTanks, 2, 1)
-            self.types[:] = [Real(0, 9)] * self.nbOfPipes + [Real(0, self.n_curves - 1)] * self.nbOfPumps + [Real(25,100)] * self.nbOfTanks + [Real(25,40)] * self.nbOfTanks + [Real(9,10)] * self.nbOfTanks + [Real(0,1)] * (24 * self.nbOfPumps)
+            self.types[:] = [Real(0, 9)] * self.nbOfPipes + [Real(0, self.n_curves - 1)] * self.nbOfPumps + [Real(25,100)] * self.nbOfTanks + [Real(25,40)] * self.nbOfTanks + [Real(9,10)] * self.nbOfTanks
             self.constraints[:] = "<=0"
             self.directions[:] = Problem.MINIMIZE
             # self.function = mixed_type
@@ -583,9 +583,7 @@ def has_solution(input_network,id=""):
                         self.nbOfPipes + self.nbOfPumps + self.nbOfTanks:self.nbOfPipes + self.nbOfPumps + 2 * self.nbOfTanks]  # max level of tank
             tanks_min = solution.variables[
                         self.nbOfPipes + self.nbOfPumps + 2 * self.nbOfTanks:self.nbOfPipes + self.nbOfPumps + 3 * self.nbOfTanks]  # min level of tank
-            patterns = solution.variables[
-                       self.nbOfPipes + self.nbOfPumps + 3 * self.nbOfTanks:self.nbOfPipes + self.nbOfPumps + 3 * self.nbOfTanks + 24 * self.nbOfPumps]
-            solution.objectives[:] = [-Functions.Res(pipes, patterns, pumps, tanks_diam, tanks_max, tanks_min, self.et, self.hStar,self.n_curves, self.Conn, self.NoConn, self.max_elevation), Functions.Cost(patterns, self.et)]
+            solution.objectives[:] = [-Functions.Res(pipes, pumps, tanks_diam, tanks_max, tanks_min, self.et, self.hStar,self.n_curves, self.Conn, self.NoConn, self.max_elevation), Functions.Cost(self.et)]
             solution.constraints[:] = [Functions.Constraint()]
 
     algorithm = NSGAII(my_mo_problem(), population_size=50)
