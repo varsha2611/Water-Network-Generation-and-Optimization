@@ -148,6 +148,7 @@ def write_inp_file(network_data,output_path,id=""):
     file.write("\n[ENERGY]\n")
 
     file.close()
+    return output_path
 
 def read_inp_file(filename):
     G = nx.Graph()
@@ -343,12 +344,13 @@ def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id=""):
         nb_of_tanks = len(network_data['TANKS'])*rescale
         if nb_of_tanks == 0:
             nb_of_tanks = 4
-        if(id == ""):
-            write_metis_format(new_G,'temp_graph.graph')
+
+        metis_format_file = 'temp_graph'+id+'.graph'
+        write_metis_format(new_G,metis_format_file)
         seed = random.randint(0,len(new_G.nodes()))
         output_file_name = 'partitions'+id
         import subprocess
-        subprocess.call(["/home/varsha/Documents/softwares/KaHIP-master/deploy/kaffpaE", 'temp_graph.graph', '--k',str(nb_of_tanks),'--seed', str(seed),'--imbalance','10','--preconfiguration','strong','--output_filename',output_file_name])
+        subprocess.call(["/home/varshac/KaHIP/deploy/kaffpaE", metis_format_file, '--k',str(nb_of_tanks),'--seed', str(seed),'--imbalance','10','--preconfiguration','strong','--output_filename',output_file_name])
         Partitions = read_partition(output_file_name)
         os.remove(output_file_name)
         b=1.5
@@ -395,9 +397,7 @@ def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id=""):
 def generate_network_data(new_G,G,network_data,id=""):
     labeled_new_G = nx.convert_node_labels_to_integers(new_G, first_label=1, ordering='default', label_attribute=None)
     new_network_data = {}
-    initial_pos = nx.graphviz_layout(G, prog='neato')
-    pos = forceatlas2.forceatlas2_networkx_layout(G, pos=initial_pos, niter=100, gravity=0.12, scalingRatio=5.0)
-    nx.draw(G, pos, with_labels=False, node_size=10)
+
     # Assign coordinates
     initial_pos = nx.graphviz_layout(labeled_new_G, prog='neato')
     pos = forceatlas2.forceatlas2_networkx_layout(labeled_new_G, pos=initial_pos, niter=100, gravity=0.12, strongGravityMode=True,scalingRatio=5.0)
@@ -421,11 +421,6 @@ def generate_network_data(new_G,G,network_data,id=""):
 
     #Assign demand
     new_network_data = assign_demand(labeled_new_G, network_data, new_network_data)
-
-    initial_pos = nx.graphviz_layout(new_G, prog='neato')
-    pos = forceatlas2.forceatlas2_networkx_layout(new_G, pos=initial_pos, niter=random.randint(50,100), gravity=0.12, strongGravityMode=True,
-                                                  scalingRatio=5.0)
-    nx.draw(new_G, pos, with_labels=False, node_size=10)
 
     return new_network_data
 
@@ -559,7 +554,7 @@ def smoothen_values(G,distribution,iterations):
 
 def has_solution(input_network,id=""):
     import sys
-    sys.path.insert(0, '/home/varsha/Documents/bigbucket/musketeer-code/WDS_Scripts/')
+    from pathlib import Path
     from platypus import NSGAII, Problem, Integer, Real
     import Functions
     import Settings
@@ -569,7 +564,7 @@ def has_solution(input_network,id=""):
 
         def __init__(self):
             super(my_mo_problem, self).__init__(self.nbOfPipes + 25 * self.nbOfPumps + 3 * self.nbOfTanks, 2, 1)
-            self.types[:] = [Real(0, 9)] * self.nbOfPipes + [Real(0, self.n_curves - 1)] * self.nbOfPumps + [Real(25,100)] * self.nbOfTanks + [Real(25,40)] * self.nbOfTanks + [Real(9,10)] * self.nbOfTanks
+            self.types[:] = [Real(0, 9)] * self.nbOfPipes + [Real(0, self.n_curves - 1)] * self.nbOfPumps + [Real(25, 100)] * self.nbOfTanks + [Real(25, 40)] * self.nbOfTanks + [Real(9, 10)] * self.nbOfTanks + [Real(0, 1)] * (24 * self.nbOfPumps)
             self.constraints[:] = "<=0"
             self.directions[:] = Problem.MINIMIZE
             # self.function = mixed_type
@@ -583,17 +578,74 @@ def has_solution(input_network,id=""):
                         self.nbOfPipes + self.nbOfPumps + self.nbOfTanks:self.nbOfPipes + self.nbOfPumps + 2 * self.nbOfTanks]  # max level of tank
             tanks_min = solution.variables[
                         self.nbOfPipes + self.nbOfPumps + 2 * self.nbOfTanks:self.nbOfPipes + self.nbOfPumps + 3 * self.nbOfTanks]  # min level of tank
-            solution.objectives[:] = [-Functions.Res(pipes, pumps, tanks_diam, tanks_max, tanks_min, self.et, self.hStar,self.n_curves, self.Conn, self.NoConn, self.max_elevation), Functions.Cost(self.et)]
+            patterns = solution.variables[
+                       self.nbOfPipes + self.nbOfPumps + 3 * self.nbOfTanks:self.nbOfPipes + self.nbOfPumps + 3 * self.nbOfTanks + 24 * self.nbOfPumps]
+            solution.objectives[:] = [-Functions.Res(pipes, patterns, pumps, tanks_diam, tanks_max, tanks_min, self.et, self.hStar,self.n_curves, self.Conn, self.NoConn, self.max_elevation),Functions.Cost(patterns, self.et)]
             solution.constraints[:] = [Functions.Constraint()]
 
-    algorithm = NSGAII(my_mo_problem(), population_size=50)
-    algorithm.run(1)
+    algorithm = NSGAII(my_mo_problem())
+    algorithm.run(1000)
 
     feasible_solutions = [s for s in algorithm.result if s.feasible]
     if(len(feasible_solutions)>0):
-        return True
+        nondominated_solutions = nondominated(feasible_solutions)
 
-    return False
+        sln = 1
+        file = open('solution'+id+'.txt', "w+")
+        for solution in nondominated_solutions:
+
+            pipes = solution.variables[0:nbOfPipes]  # diameter of pipe
+            pumps = solution.variables[nbOfPipes:nbOfPipes + nbOfPumps]  # curve of pumps
+            tanks_diam = solution.variables[
+                         nbOfPipes + nbOfPumps:nbOfPipes + nbOfPumps + nbOfTanks]  # diameter of tank
+            tanks_max = solution.variables[
+                        nbOfPipes + nbOfPumps + nbOfTanks:nbOfPipes + nbOfPumps + 2 * nbOfTanks]  # max level of tank
+            tanks_min = solution.variables[
+                        nbOfPipes + nbOfPumps + 2 * nbOfTanks:nbOfPipes + nbOfPumps + 3 * nbOfTanks]  # min level of tank
+            patterns = solution.variables[
+                       nbOfPipes + nbOfPumps + 3 * nbOfTanks:nbOfPipes + nbOfPumps + 3 * nbOfTanks + 24 * nbOfPumps]
+            Functions.WriteFeasibleSolution(pipes, patterns, pumps, tanks_diam, tanks_max, tanks_min, et, max_elevation)
+            file.write("solution index " + str(sln))
+            file.write(
+                "\nResilience: " + str(-solution.objectives[0]) + "\tCost: " + str(solution.objectives[1]) + "\n")
+            file.write("\npipes\n")
+            for i in range(0, len(pipes)):
+                pipes[i] = int(round(pipes[i]))
+
+            file.write(str(pipes))
+
+            file.write("\npumps\n")
+            for i in range(0, len(pumps)):
+                pumps[i] = int(round(pumps[i]))
+
+            file.write(str(pumps))
+
+            for i in range(0, len(patterns)):
+                patterns[i] = int(round(patterns[i]))
+
+            for i in range(0, len(tanks_max)):
+                tanks_max[i] = tanks_max[i]
+            file.write("\ntank diameters\n")
+            file.write(str(tanks_diam))
+
+            file.write("\ntank maximum level\n")
+            file.write(str(tanks_max))
+
+            for i in range(0, len(tanks_min)):
+                tanks_min[i] = tanks_min[i]
+            file.write("\ntank minimum level\n")
+            file.write(str(tanks_min))
+
+            file.write("\npatterns\n")
+            p = 0
+            idx = 0
+            for pattern in patterns:
+                if (idx >= 1 and idx <= len(pumps)):
+                    file.write(str(patterns[p:p + 24]) + "\n")
+                    p += 23
+                idx += 1
+            sln += 1
+            file.write("\n\n")
 
 
 def generate_PlatypusProblem(input_network):
