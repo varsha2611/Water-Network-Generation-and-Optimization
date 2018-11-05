@@ -251,6 +251,7 @@ def Res(pipes,patterns, pumps,tanks_diam,tanks_max,tanks_min, d ,hStar,Curves,Co
 
 def Constraint():
     global C
+    print("iteration complete")
     return C
 
 
