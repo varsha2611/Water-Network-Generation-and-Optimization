@@ -350,7 +350,7 @@ def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id=""):
         seed = random.randint(0,len(new_G.nodes()))
         output_file_name = 'partitions'+id
         import subprocess
-        subprocess.call(["/home/varshac/KaHIP/deploy/kaffpaE", metis_format_file, '--k',str(nb_of_tanks),'--seed', str(seed),'--imbalance','10','--preconfiguration','strong','--output_filename',output_file_name])
+        subprocess.call(["/home/varsha/Documents/softwares/KaHIP-master/deploy/kaffpaE", metis_format_file, '--k',str(nb_of_tanks),'--seed', str(seed),'--imbalance','10','--preconfiguration','strong','--output_filename',output_file_name])
         Partitions = read_partition(output_file_name)
         os.remove(output_file_name)
         b=1.5
