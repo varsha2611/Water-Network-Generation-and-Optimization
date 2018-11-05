@@ -36,8 +36,8 @@ def write_inp_file(network_data,output_path,id=""):
     file.write(";ID\tHead\tPattern\n")
     for reservoir in network_data['RESERVOIRS']:
         file.write('R'+str(reservoir)+"\t")
-        file.write(str(194.00))
-        file.write(";\n")
+        file.write(str(7056))
+        file.write("\t;\n")
 
     #write tanks
     file.write("\n[TANKS]\n")
