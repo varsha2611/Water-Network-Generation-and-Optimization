@@ -44,7 +44,7 @@ if __name__ == "__main__":
         sys.exit(2)
     file = open('input.txt', "w+")
     for j in range(1,200):
-        file.write("python WDS_generator.py -j "+str(j)+" -i '"+input_path+"' -p "+str(params)+"\n")
+        file.write("python WDS_generator.py -j "+str(j)+" -i '"+input_path+"' -p \""+str(params)+"\"\n")
     file.close()
 
    
