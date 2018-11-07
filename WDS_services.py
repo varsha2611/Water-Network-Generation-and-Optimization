@@ -371,18 +371,16 @@ def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id=""):
         b=1.5
         for tank in new_network_data['TANKS']:
             path = nx.shortest_path(new_G, source=reservoir, target=tank, weight=None)
-            index = random.choice(range(1, len(path)-2))
-            probability = random.uniform(0, b)
-            source = path[index]
-            if index == (len(path)-1):
-                target = tank
-            else:
+            if len(path>2):
+                index = random.randomint(1, len(path)-2)
+                probability = random.uniform(0, b)
+                source = path[index]
                 target = path[index+1]
-            if probability > 0.5 or len(new_network_data['PUMPS'])==0:
-                new_network_data['PUMPS'].append((source, target))
-                b -= 0.1
-            else:
-                b += 0.1
+                if probability > 0.5 or len(new_network_data['PUMPS'])==0:
+                    new_network_data['PUMPS'].append((source, target))
+                    b -= 0.1
+                else:
+                    b += 0.1
 
         return new_network_data
 
