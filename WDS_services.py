@@ -378,7 +378,7 @@ def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id=""):
                 target = tank
             else:
                 target = path[index+1]
-            if probability > 0.5:
+            if probability > 0.5 or len(new_network_data['PUMPS'])==0:
                 new_network_data['PUMPS'].append((source, target))
                 b -= 0.1
             else:
@@ -557,7 +557,7 @@ def has_solution(input_network,id=""):
 
         def __init__(self):
             super(my_mo_problem, self).__init__(self.nbOfPipes + 25 * self.nbOfPumps + 3 * self.nbOfTanks, 2, 1)
-            self.types[:] = [Real(0, 9)] * self.nbOfPipes + [Real(0, self.n_curves - 1)] * self.nbOfPumps + [Real(25, 100)] * self.nbOfTanks + [Real(25, 40)] * self.nbOfTanks + [Real(9, 10)] * self.nbOfTanks
+            self.types[:] = [Real(0, 9)] * self.nbOfPipes + [Real(0, self.n_curves - 1)] * self.nbOfPumps + [Real(25, 100)] * self.nbOfTanks + [Real(25, 40)] * self.nbOfTanks + [Real(5, 10)]* self.nbOfTanks
             self.constraints[:] = "<=0"
             self.directions[:] = Problem.MINIMIZE
             # self.function = mixed_type
