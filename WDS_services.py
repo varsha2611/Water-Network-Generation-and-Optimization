@@ -556,8 +556,8 @@ def has_solution(input_network,id=""):
         Functions.SetVariables(et)
 
         def __init__(self):
-            super(my_mo_problem, self).__init__(self.nbOfPipes + 25 * self.nbOfPumps + 3 * self.nbOfTanks, 2, 1)
-            self.types[:] = [[Real(0, 9)] * self.nbOfPipes + [Real(0, self.n_curves - 1)] * self.nbOfPumps + [Real(25, 100)] * self.nbOfTanks + [Real(25, 40)] * self.nbOfTanks + [Real(5, 10)]* self.nbOfTanks]
+            super(my_mo_problem, self).__init__(self.nbOfPipes + self.nbOfPumps + 3 * self.nbOfTanks, 2, 1)
+            self.types[:] = [Real(0, 9)] * self.nbOfPipes + [Real(0, self.n_curves - 1)] * self.nbOfPumps + [Real(25, 100)] * self.nbOfTanks + [Real(25, 40)] * self.nbOfTanks + [Real(5, 10)]* self.nbOfTanks
             self.constraints[:] = "<=0"
             self.directions[:] = Problem.MINIMIZE
             # self.function = mixed_type
@@ -574,7 +574,7 @@ def has_solution(input_network,id=""):
             solution.objectives[:] = [-Functions.Res(pipes, pumps, tanks_diam, tanks_max, tanks_min, self.et, self.hStar,self.n_curves, self.Conn, self.NoConn, self.max_elevation),Functions.Cost(self.et)]
             solution.constraints[:] = [Functions.Constraint()]
 
-    algorithm = NSGAII(my_mo_problem(),population_size=100)
+    algorithm = NSGAII(my_mo_problem(),population_size=200)
     algorithm.run(1000)
     feasible_solutions = [s for s in algorithm.result if s.feasible]
     if(len(feasible_solutions)>0):
