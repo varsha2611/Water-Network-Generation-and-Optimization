@@ -354,7 +354,7 @@ def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id=""):
         b=1.5
         for partition in Partitions:
             probability = random.uniform(0, b)
-            if probability > 0.5 or len(new_network_data['TANKS'] == 0):
+            if probability > 0.5 or len(new_network_data['TANKS']) == 0:
                 for node in Partitions[partition]:
                     if new_G.degree(node) == 1:
                         new_network_data['TANKS'].append(node)
