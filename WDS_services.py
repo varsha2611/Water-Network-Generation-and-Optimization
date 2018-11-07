@@ -481,8 +481,10 @@ def assign_elevation(new_G, network_data, new_network_data):
 
     #initialize with zero
     for node in new_G.nodes():
-    #neglect zero position add additional indexing
         new_distribution.append(0)
+
+    #neglect zero position add additional indexing
+    new_distribution.append(0)
 
     #Assign initial random values
     for node in new_G.nodes():
