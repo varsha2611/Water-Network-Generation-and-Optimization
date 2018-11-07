@@ -25,10 +25,6 @@ import simpletesters
 import graphutils
 import alternatives #module might be refered in params['algorithm']
 import collections
-from networkx.drawing.nx_agraph import graphviz_layout
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use("ps")
 import planarity
 
 
