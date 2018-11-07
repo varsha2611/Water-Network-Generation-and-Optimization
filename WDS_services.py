@@ -574,7 +574,7 @@ def has_solution(input_network,id=""):
             solution.objectives[:] = [-Functions.Res(pipes, pumps, tanks_diam, tanks_max, tanks_min, self.et, self.hStar,self.n_curves, self.Conn, self.NoConn, self.max_elevation),Functions.Cost(self.et)]
             solution.constraints[:] = [Functions.Constraint()]
 
-    algorithm = NSGAII(my_mo_problem())
+    algorithm = NSGAII(my_mo_problem(),population_size=100)
     algorithm.run(1000)
     feasible_solutions = [s for s in algorithm.result if s.feasible]
     if(len(feasible_solutions)>0):
