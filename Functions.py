@@ -22,7 +22,7 @@ def SetVariables(d):
     ret, llinks = d.ENgetcount(d.EN_LINKCOUNT)
 
 
-def Res(pipes,patterns, pumps,tanks_diam,tanks_max,tanks_min, d ,hStar,Curves,Conn,NoConn,max_elevation):
+def Res(pipes, pumps,tanks_diam,tanks_max,tanks_min, d ,hStar,Curves,Conn,NoConn,max_elevation):
     #print ('function start')
     global nnodes
     global llinks
@@ -69,10 +69,6 @@ def Res(pipes,patterns, pumps,tanks_diam,tanks_max,tanks_min, d ,hStar,Curves,Co
             idx2+=1
 
 
-    for i in range(0, len(patterns)):
-        patterns[i] = int(round(patterns[i]))
-
-
     i=0
     p = 0
 
@@ -83,12 +79,6 @@ def Res(pipes,patterns, pumps,tanks_diam,tanks_max,tanks_min, d ,hStar,Curves,Co
                 for j in xrange(nb):
                     ret, val = d.ENgetpatternvalue(pattern+1, j+1)
                     demand_pattern.append(val)
-
-        elif pattern > 0:
-            #print (pattern,patterns[p:p+24])
-            d.ENsetpattern(pattern+1, patterns[p:p+24])
-            p+=23
-
 
     idx = 0
     # set value for tanks
@@ -269,7 +259,7 @@ def ConstraintTankLevel(d,tanks_max,tanks_min):
 
     return -1000
 
-def Cost(patterns,d):
+def Cost(d):
 
     import numpy as np
     import math
@@ -282,10 +272,7 @@ def Cost(patterns,d):
     Cpv = 0.10367 #the    present   value    factor
     Cp = 0.12 #the    cost    of    electricity $0.12 / kWh
 
-    NoOfHours = 0
-    for i in range(0, len(patterns)):
-        patterns[i] = int(round(patterns[i]))
-        NoOfHours +=patterns[i]
+    NoOfHours = 24
 
     Nop = 365 *NoOfHours
 
@@ -323,7 +310,7 @@ def TankConstraint(tanks_max,tanks_min):
 
     return -1000
 
-def WriteFeasibleSolution(pipes,patterns, pumps,tanks_diam,tanks_max,tanks_min, d ,max_elevation):
+def WriteFeasibleSolution(pipes,pumps,tanks_diam,tanks_max,tanks_min, d ,max_elevation):
     #print ('function start')
     global nnodes
     global llinks
@@ -354,10 +341,6 @@ def WriteFeasibleSolution(pipes,patterns, pumps,tanks_diam,tanks_max,tanks_min, 
             idx2+=1
 
 
-    for i in range(0, len(patterns)):
-        patterns[i] = int(round(patterns[i]))
-
-
     i=0
     p = 0
 
@@ -368,12 +351,6 @@ def WriteFeasibleSolution(pipes,patterns, pumps,tanks_diam,tanks_max,tanks_min, 
                 for j in xrange(nb):
                     ret, val = d.ENgetpatternvalue(pattern+1, j+1)
                     demand_pattern.append(val)
-
-        elif pattern > 0:
-            #print (pattern,patterns[p:p+24])
-            d.ENsetpattern(pattern+1, patterns[p:p+24])
-            p+=23
-
 
     idx = 0
     # set value for tanks

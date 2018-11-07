@@ -563,7 +563,7 @@ def has_solution(input_network,id=""):
 
         def __init__(self):
             super(my_mo_problem, self).__init__(self.nbOfPipes + 25 * self.nbOfPumps + 3 * self.nbOfTanks, 2, 1)
-            self.types[:] = [Real(0, 9)] * self.nbOfPipes + [Real(0, self.n_curves - 1)] * self.nbOfPumps + [Real(25, 100)] * self.nbOfTanks + [Real(25, 40)] * self.nbOfTanks + [Real(9, 10)] * self.nbOfTanks + [Real(0, 1)] * (24 * self.nbOfPumps)
+            self.types[:] = [Real(0, 9)] * self.nbOfPipes + [Real(0, self.n_curves - 1)] * self.nbOfPumps + [Real(25, 100)] * self.nbOfTanks + [Real(25, 40)] * self.nbOfTanks + [Real(9, 10)] * self.nbOfTanks
             self.constraints[:] = "<=0"
             self.directions[:] = Problem.MINIMIZE
             # self.function = mixed_type
@@ -577,16 +577,14 @@ def has_solution(input_network,id=""):
                         self.nbOfPipes + self.nbOfPumps + self.nbOfTanks:self.nbOfPipes + self.nbOfPumps + 2 * self.nbOfTanks]  # max level of tank
             tanks_min = solution.variables[
                         self.nbOfPipes + self.nbOfPumps + 2 * self.nbOfTanks:self.nbOfPipes + self.nbOfPumps + 3 * self.nbOfTanks]  # min level of tank
-            patterns = solution.variables[
-                       self.nbOfPipes + self.nbOfPumps + 3 * self.nbOfTanks:self.nbOfPipes + self.nbOfPumps + 3 * self.nbOfTanks + 24 * self.nbOfPumps]
-            solution.objectives[:] = [-Functions.Res(pipes, patterns, pumps, tanks_diam, tanks_max, tanks_min, self.et, self.hStar,self.n_curves, self.Conn, self.NoConn, self.max_elevation),Functions.Cost(patterns, self.et)]
+            solution.objectives[:] = [-Functions.Res(pipes, pumps, tanks_diam, tanks_max, tanks_min, self.et, self.hStar,self.n_curves, self.Conn, self.NoConn, self.max_elevation),Functions.Cost(self.et)]
             solution.constraints[:] = [Functions.Constraint()]
 
     algorithm = NSGAII(my_mo_problem())
-    algorithm.run(500)
+    algorithm.run(1000)
     feasible_solutions = [s for s in algorithm.result if s.feasible]
     if(len(feasible_solutions)>0):
-	print("has solution")
+        print("has solution")
         nondominated_solutions = nondominated(feasible_solutions)
 
         sln = 1
@@ -601,9 +599,7 @@ def has_solution(input_network,id=""):
                         nbOfPipes + nbOfPumps + nbOfTanks:nbOfPipes + nbOfPumps + 2 * nbOfTanks]  # max level of tank
             tanks_min = solution.variables[
                         nbOfPipes + nbOfPumps + 2 * nbOfTanks:nbOfPipes + nbOfPumps + 3 * nbOfTanks]  # min level of tank
-            patterns = solution.variables[
-                       nbOfPipes + nbOfPumps + 3 * nbOfTanks:nbOfPipes + nbOfPumps + 3 * nbOfTanks + 24 * nbOfPumps]
-            Functions.WriteFeasibleSolution(pipes, patterns, pumps, tanks_diam, tanks_max, tanks_min, et, max_elevation)
+            Functions.WriteFeasibleSolution(pipes, pumps, tanks_diam, tanks_max, tanks_min, et, max_elevation)
             file.write("solution index " + str(sln))
             file.write(
                 "\nResilience: " + str(-solution.objectives[0]) + "\tCost: " + str(solution.objectives[1]) + "\n")
@@ -619,9 +615,6 @@ def has_solution(input_network,id=""):
 
             file.write(str(pumps))
 
-            for i in range(0, len(patterns)):
-                patterns[i] = int(round(patterns[i]))
-
             for i in range(0, len(tanks_max)):
                 tanks_max[i] = tanks_max[i]
             file.write("\ntank diameters\n")
@@ -634,15 +627,6 @@ def has_solution(input_network,id=""):
                 tanks_min[i] = tanks_min[i]
             file.write("\ntank minimum level\n")
             file.write(str(tanks_min))
-
-            file.write("\npatterns\n")
-            p = 0
-            idx = 0
-            for pattern in patterns:
-                if (idx >= 1 and idx <= len(pumps)):
-                    file.write(str(patterns[p:p + 24]) + "\n")
-                    p += 23
-                idx += 1
             sln += 1
             file.write("\n\n")
 
