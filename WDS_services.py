@@ -1,6 +1,5 @@
 import networkx as nx
 from networkx.drawing.nx_agraph import graphviz_layout
-import matplotlib.pyplot as plt
 import forceatlas2
 import random
 from random import randrange
@@ -99,7 +98,6 @@ def write_inp_file(network_data,output_path,id=""):
         file.write("PATTERN " + str(idx+1) +"\t;\n")
         idx+=1
 
-    #write coordinates
     file.write("\n[TIMES]\n")
     file.write("Duration\t\t24:00\n")
     file.write("Hydraulic Timestep\t1:00\n")
@@ -381,6 +379,7 @@ def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id=""):
                 index = random.choice(range(0, len(path)))
                 probability = random.uniform(0, b)
                 source = path[index]
+                source = path[index]
                 if index == (len(path)-1):
                     target = tank
                 else:
@@ -446,7 +445,7 @@ def plot_graph(G,network_data):
     #nx.draw_networkx_nodes(G, pos, nodelist=other_nodes, node_color='black', node_size=5)
     nx.draw_networkx_edges(G, pos)
     # nx.draw(G, pos, with_labels=False, node_color=node_colors, node_size=50)
-    plt.show()
+    #plt.show()
 
 def read_partition(file_path):
     Partitions = {}
@@ -482,7 +481,6 @@ def assign_elevation(new_G, network_data, new_network_data):
 
     #initialize with zero
     for node in new_G.nodes():
-        new_distribution.append(0)
 
     #neglect zero position add additional indexing
     new_distribution.append(0)
@@ -584,10 +582,10 @@ def has_solution(input_network,id=""):
             solution.constraints[:] = [Functions.Constraint()]
 
     algorithm = NSGAII(my_mo_problem())
-    algorithm.run(1000)
-
+    algorithm.run(500)
     feasible_solutions = [s for s in algorithm.result if s.feasible]
     if(len(feasible_solutions)>0):
+	print("has solution")
         nondominated_solutions = nondominated(feasible_solutions)
 
         sln = 1
@@ -652,6 +650,7 @@ def generate_PlatypusProblem(input_network):
     problem = open("WDS_Scripts/MyCustomProblem.py", "w+")
     problem.write("from platypus import NSGAII, Problem, Integer,Real\n")
     problem.write("import sys\n")
+    problem.write("sys.path.insert(0, '/home/varsha/Documents/MyCode/Water Network/Optimization/')\n")
     problem.write("sys.path.insert(0, '/home/varsha/Documents/MyCode/Water Network/Optimization/')\n")
     problem.write("import Functions\n")
     problem.write("import Settings\n")
