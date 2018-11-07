@@ -371,6 +371,7 @@ def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id=""):
         b=1.5
         for tank in new_network_data['TANKS']:
             path = nx.shortest_path(new_G, source=reservoir, target=tank, weight=None)
+            print(path,reservoir,tank)
             if reservoir in path and tank in path:
                 idx =path.index(reservoir)
                 path.remove(idx)
