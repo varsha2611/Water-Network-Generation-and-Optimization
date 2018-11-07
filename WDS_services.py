@@ -372,8 +372,10 @@ def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id=""):
         for tank in new_network_data['TANKS']:
             path = nx.shortest_path(new_G, source=reservoir, target=tank, weight=None)
             if reservoir in path and tank in path:
-                path.remove(reservoir)
-                path.remove(tank)
+                idx =path.index(reservoir)
+                path.remove(idx)
+                idx = path.index(tank)
+                path.remove(idx)
                 if len(path)==0:
                     continue
                 index = random.choice(range(0, len(path)))
