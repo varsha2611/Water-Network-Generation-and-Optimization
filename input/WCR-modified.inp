@@ -3791,7 +3791,7 @@
  5003            	9004            	9019            	HEAD C2	;
  5004            	9005            	9020            	HEAD C1	;
  5005            	9006            	9021            	HEAD C1	;
- 5006            	61594           	61965           	HEAD C7	PATTERN 7	;
+ 5006            	61594           	61965           	HEAD C7	;
 
 [VALVES]
 ;ID              	Node1           	Node2           	Diameter    	Type	Setting     	MinorLoss   
@@ -3829,26 +3829,7 @@
 [CURVES]
 ;ID              	X-Value     	Y-Value
 ;PUMP: PUMP: PUMP: PUMP: PUMP: PUMP: 
- C1              	1000.0000   	180.0000    
-;PUMP: PUMP: PUMP: PUMP: PUMP: PUMP: 
- C2              	2000.0000   	200.0000    
-;PUMP: PUMP: PUMP: PUMP: PUMP: PUMP: 
- C3              	3000.0000   	220.0000    
-;PUMP: PUMP: PUMP: PUMP: PUMP: PUMP: 
- C4              	4000.0000   	240.0000    
-;PUMP: PUMP: PUMP: PUMP: PUMP: PUMP: 
- C5              	5000.0000   	260.0000    
-;PUMP: PUMP: PUMP: PUMP: PUMP: PUMP: 
- C6              	1000.0000   	200.0000    
-;PUMP: PUMP: PUMP: PUMP: PUMP: PUMP: 
- C7              	2000.0000   	220.0000    
-;PUMP: PUMP: PUMP: PUMP: PUMP: PUMP: 
- C8              	3000.0000   	240.0000    
-;PUMP: PUMP: PUMP: PUMP: PUMP: PUMP: 
- C9              	4000.0000   	260.0000    
-;PUMP: PUMP: PUMP: PUMP: PUMP: PUMP: 
- C10             	5000.0000   	280.0000    
-
+ 1              	1000.0000   	180.0000    
 [CONTROLS]
 
 
