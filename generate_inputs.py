@@ -45,7 +45,7 @@ if __name__ == "__main__":
         sys.exit(2)
     file = open('input.txt', "w+")
     for j in range(1,101):
-        file.write("python musketeer.py -s "+str(j)+" -f '"+input_path+"' -p \""+str(params)+ "\" -k True -o "+ output+ str(j)+".edges"+"\"\n")
+        file.write("python musketeer.py -s "+str(j)+" -f '"+input_path+"' -p \""+str(params)+ "\" -k True -o \""+ output+ str(j)+".edges"+"\"\n")
     file.close()
 
    
