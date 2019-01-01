@@ -39,7 +39,7 @@ if __name__ == "__main__":
     init_options = initialize()
     input_path = init_options['input_path']
     params = init_options['params']
-    output = input_path.replace(".edges", "generated")
+    output = input_path.replace(".edges", "generated_fine")
     if input_path == None:
         print("No input network given")
         sys.exit(2)
