@@ -39,12 +39,13 @@ if __name__ == "__main__":
     init_options = initialize()
     input_path = init_options['input_path']
     params = init_options['params']
+    output = input_path.replace(".edges", "generated")
     if input_path == None:
         print("No input network given")
         sys.exit(2)
     file = open('input.txt', "w+")
-    for j in range(1,200):
-        file.write("python WDS_generator.py -j "+str(j)+" -i '"+input_path+"' -p \""+str(params)+"\"\n")
+    for j in range(1,101):
+        file.write("python musketeer.py -s "+str(j)+" -f '"+input_path+"' -p \""+str(params)+ "\" -k True -o "+ output+ str(j)+".edges"+"\"\n")
     file.close()
 
    
