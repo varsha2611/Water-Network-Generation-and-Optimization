@@ -4,7 +4,7 @@ import os
 
 def initialize():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "i:p:v", ["input=", "params="])
+        opts, args = getopt.getopt(sys.argv[1:], "i:p:g:v", ["input=", "params=", "generator="])
     except getopt.GetoptError as err:
         print (str(err))
         usage()
@@ -20,6 +20,8 @@ def initialize():
             verbose = True
         elif o in ("-i", "--input"):
             input_path = a
+        elif o in ("-g", "--generator"):
+            generator = a
         elif o in ("-p", "--params"):
             try:
                 params.update(eval(a.strip()))
@@ -31,15 +33,16 @@ def initialize():
             assert False, "unhandled option"
             print(o,a)
 
-    ret = {'params': params, 'input_path': input_path}
+    ret = {'params': params, 'input_path': input_path , 'generator':generator}
     return ret
 
 
 if __name__ == "__main__":
     init_options = initialize()
     input_path = init_options['input_path']
+    generator = init_options['generator']
     params = init_options['params']
-    output = input_path.replace(".edges", "generated_fine")
+    output = input_path.replace(".edges", "generated"+generator)
     if input_path == None:
         print("No input network given")
         sys.exit(2)
