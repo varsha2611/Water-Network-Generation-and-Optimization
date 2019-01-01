@@ -43,6 +43,7 @@ if __name__ == "__main__":
     generator = init_options['generator']
     params = init_options['params']
     output = input_path.replace(".edges", "generated"+generator)
+    output = output.replace("input","rescale")
     if input_path == None:
         print("No input network given")
         sys.exit(2)
