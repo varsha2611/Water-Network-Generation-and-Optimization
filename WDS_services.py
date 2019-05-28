@@ -6,12 +6,12 @@ from random import randrange
 from random import uniform
 import os
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 
 def write_inp_file(network_data,output_path,id=""):
     if (id != ""):
-        output_path = output_path+id+".inp"
+        output_path = output_path+str(id)+".inp"
     file = open(output_path, "w+")
 
     #write title
@@ -21,14 +21,27 @@ def write_inp_file(network_data,output_path,id=""):
     #write junctions
     file.write("\n[JUNCTIONS]\n")
     file.write(";ID\tElev\tDemand\tPattern\n")
+    demand_nodes = 1
+    elevation = 0
     for junction in network_data['JUNCTIONS']:
         file.write('JU'+str(junction)+"\t")
+        elevation = max(network_data['ELEVATIONS'][int(junction)], elevation)
         file.write(str(network_data['ELEVATIONS'][int(junction)])+"\t")
-        if network_data['DEMANDS'][int(junction)] < 0:
+        if network_data['DEMANDS'][int(junction)] < 0 or junction in network_data['NO_DEMAND_NODES']:
             network_data['DEMANDS'][int(junction)] = 0
         file.write(str(network_data['DEMANDS'][int(junction)])+"\t")
-        #file.write(str(1) + "\t")
         file.write(";\n")
+        demand_nodes+=1
+
+    ''''
+    for junction in network_data['NO_DEMAND_NODES']:
+        file.write('JU'+str(demand_nodes)+"\t")
+        file.write(str(network_data['ELEVATIONS'][int(junction)])+"\t")
+        file.write(str(0)+"\t")
+        file.write(";\n")
+        demand_nodes+=1
+    '''
+
 
     # write reservoirs
     file.write("\n[RESERVOIRS]\n")
@@ -260,7 +273,13 @@ def read_inp_file(filename):
 
 def generate_network(G,output_path,network_data):
     initial_pos =  nx.graphviz_layout(G,prog='neato')
-    pos = forceatlas2.forceatlas2_networkx_layout(G, pos = initial_pos, niter=100,gravity=.12,strongGravityMode=True,scalingRatio = 5.0) # Optionally specify iteration count
+    pos = forceatlas2.forceatlas2_networkx_layout(G, pos = initial_pos, niter=100,gravity=.00001,strongGravityMode=True,scalingRatio = 5.0)
+    nx.draw(G, pos, with_labels=False, node_size=10)
+    plt.show()# Optionally specify iteration count
+    pos = forceatlas2.forceatlas2_networkx_layout(G, pos=initial_pos, niter=100, gravity=5, strongGravityMode=True,
+                                                  scalingRatio=5.0)
+    nx.draw(G, pos, with_labels=False, node_size=10)
+    plt.show()  #
     probable_reservoirs = []
     min_x = min_y = float('inf')
     max_x = max_y = float('-inf')
@@ -280,8 +299,8 @@ def generate_network(G,output_path,network_data):
 
     random_index = randrange(int(len(probable_reservoirs)/2), len(probable_reservoirs))
     reservoir = probable_reservoirs[random_index]
-    node_colors = ['blue' if node == reservoir else 'red' for node in G.nodes()]
-    nx.draw(G, pos, with_labels=False, node_color=node_colors, node_size=50)
+    #node_colors = ['blue' if node == reservoir else 'red' for node in G.nodes()]
+    #nx.draw(G, pos, with_labels=False, node_color=node_colors, node_size=50)
     write_inp_file(network_data,output_path)
     #G_new , new_data = read_inp_file(output_path)
     #get_data_for_optimization(G_new, new_data)
@@ -333,7 +352,7 @@ def write_metis_format(G,output_path):
         file.write("\n")
     file.close()
 
-def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id=""):
+def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id="1"):
     if network_data.has_key('TANKS'):
         rescale = int(len(new_G.nodes())/len(G.nodes()))
         new_network_data['TANKS'] = []
@@ -343,12 +362,12 @@ def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id=""):
         if nb_of_tanks == 0:
             nb_of_tanks = 4
 
-        metis_format_file = 'temp_graph'+id+'.graph'
+        metis_format_file = 'temp_graph'+str(id)+'.graph'
         write_metis_format(new_G,metis_format_file)
         seed = random.randint(0,len(new_G.nodes()))
-        output_file_name = 'partitions'+id
+        output_file_name = 'partitions'+str(id)
         import subprocess
-        subprocess.call(["/home/varshac/KaHIP/deploy/kaffpaE", metis_format_file, '--k',str(nb_of_tanks),'--seed', str(seed),'--imbalance','10','--preconfiguration','strong','--output_filename',output_file_name])
+        subprocess.call(["/home/varsha/Documents/KaHIP-master/deploy/kaffpaE", metis_format_file, '--k',str(nb_of_tanks),'--seed', str(seed),'--imbalance','10','--preconfiguration','strong','--output_filename',output_file_name])
         Partitions = read_partition(output_file_name)
         os.remove(output_file_name)
         b=1.5
@@ -366,23 +385,52 @@ def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id=""):
             else:
                 b += 0.1
 
-
         reservoir = random.choice(new_network_data['RESERVOIRS'])
+
+        # Find edges through node
+        new_network_data['NO_DEMAND_NODES'] = []
+        nb_of_nodes = len(new_G.nodes())
+        neighbors = new_G.neighbors(reservoir)
+        for neighbor in neighbors:
+            s_neighbors = new_G.neighbors(neighbor)
+            for s_neighbor in s_neighbors:
+                if s_neighbor != reservoir:
+                    new_network_data['PUMPS'].append((s_neighbor, neighbor))
+                    while len(new_network_data['PUMPS']) <= 4:
+                        new_node_1 = nb_of_nodes + 1
+                        new_node_2 = nb_of_nodes + 2
+                        nb_of_nodes+=2
+                        new_G.add_edge(new_node_1,s_neighbor)
+                        new_G.add_edge(new_node_2, neighbor)
+                        new_G.add_edge(new_node_1, new_node_2)
+                        new_network_data['PUMPS'].append((new_node_1, new_node_2))
+                        new_network_data['NO_DEMAND_NODES'].append(new_node_1)
+                        new_network_data['NO_DEMAND_NODES'].append(new_node_2)
+                        s_neighbor = new_node_1
+                        neighbor = new_node_2
+        '''
         b=1.5
         for tank in new_network_data['TANKS']:
             path = nx.shortest_path(new_G, source=reservoir, target=tank, weight=None)
-            if len(path)>2:
-                index = random.randint(1, len(path)-2)
+            if reservoir in path and tank in path:
+                path.remove(reservoir)
+                path.remove(tank)
+                if len(path)==0:
+                    continue
+                index = random.choice(range(0, len(path)))
                 probability = random.uniform(0, b)
                 source = path[index]
-                target = path[index+1]
-                if probability > 0.5 or len(new_network_data['PUMPS'])==0:
+                if index == (len(path)-1):
+                    target = tank
+                else:
+                    target = path[index+1]
+                if probability > 0.5:
                     new_network_data['PUMPS'].append((source, target))
                     b -= 0.1
                 else:
                     b += 0.1
-
-        return new_network_data
+        '''
+        return new_network_data, new_G
 
 
 def generate_network_data(new_G,G,network_data,id=""):
@@ -391,7 +439,10 @@ def generate_network_data(new_G,G,network_data,id=""):
 
     # Assign coordinates
     initial_pos = nx.graphviz_layout(labeled_new_G, prog='neato')
-    pos = forceatlas2.forceatlas2_networkx_layout(labeled_new_G, pos=initial_pos, niter=100, gravity=0.12, strongGravityMode=True,scalingRatio=5.0)
+   # Optionally specify iteration count
+    pos = forceatlas2.forceatlas2_networkx_layout(labeled_new_G, pos=initial_pos, niter=100, gravity = 0.5)
+    nx.draw(labeled_new_G, pos, with_labels=False, node_size=5)
+    plt.show()
 
     new_network_data['COORDINATES'] = pos
 
@@ -399,7 +450,16 @@ def generate_network_data(new_G,G,network_data,id=""):
     new_network_data = assign_reservoirs(labeled_new_G,network_data,new_network_data)
 
     # Assign tanks
-    new_network_data = assign_tanks_and_pumps(labeled_new_G,G,network_data,new_network_data,id)
+    new_network_data, labeled_new_G = assign_tanks_and_pumps(labeled_new_G,G,network_data,new_network_data,id)
+
+    # Assign coordinates
+    initial_pos = nx.graphviz_layout(labeled_new_G, prog='neato')
+    # Optionally specify iteration count
+    pos = forceatlas2.forceatlas2_networkx_layout(labeled_new_G, pos=initial_pos, niter=100, gravity=0.5)
+    nx.draw(labeled_new_G, pos, with_labels=False, node_size=5)
+    plt.show()
+
+    new_network_data['COORDINATES'] = pos
 
     #Assign junctions
     new_network_data = assign_junctions(labeled_new_G,network_data,new_network_data)
@@ -544,6 +604,7 @@ def smoothen_values(G,distribution,iterations):
 
 
 def has_solution(input_network,id=""):
+    print("finding solution")
     import sys
     from pathlib import Path
     from platypus import NSGAII, Problem, Integer, Real
