@@ -1,6 +1,4 @@
 from platypus import NSGAII, Problem, Integer,Real
-import sys
-sys.path.insert(0, '/home/varsha/Documents/MyCode/Water Network/Optimization/')
 import Functions
 import Settings
 class my_mo_problem(Problem):
