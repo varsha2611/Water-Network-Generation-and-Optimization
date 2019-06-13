@@ -375,7 +375,7 @@ def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id="1"):
             probability = random.uniform(0, b)
             if probability > 0.5 or len(new_network_data['TANKS']) == 0:
                 for node in Partitions[partition]:
-                    if new_G.degree(node) == 1:
+                    if new_G.degree(node) == 1 and node not in new_network_data['RESERVOIRS']:
                         new_network_data['TANKS'].append(node)
                         b -= 0.1
                         break
@@ -385,10 +385,38 @@ def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id="1"):
             else:
                 b += 0.1
 
+        print("Before Pumps")
         reservoir = random.choice(new_network_data['RESERVOIRS'])
+        initial_pos = nx.graphviz_layout(new_G, prog='neato')
+        pos = forceatlas2.forceatlas2_networkx_layout(new_G, pos=initial_pos, niter=100, gravity=0.5)
+        nx.draw(new_G, pos, with_labels=False, node_size=5)
+        plt.show()
 
         # Find edges through node
         new_network_data['NO_DEMAND_NODES'] = []
+        nb_of_nodes = len(new_G.nodes())
+        station = 0
+        neighbors = new_G.neighbors(reservoir)
+        for neighbor in neighbors:
+            new_node = nb_of_nodes+1
+            pumps = 0
+            while pumps < 4:
+                new_network_data['PUMPS'].append((new_node,neighbor))
+                pumps+=1
+            new_G.add_edge(new_node, neighbor)
+            new_G.add_edge(reservoir,new_node)
+            new_G.remove_edge(reservoir,neighbor)
+            station+=1
+            if(station == 1):
+                break
+           
+
+        initial_pos = nx.graphviz_layout(new_G, prog='neato')
+        pos = forceatlas2.forceatlas2_networkx_layout(new_G, pos=initial_pos, niter=100, gravity=0.5)
+        nx.draw(new_G, pos, with_labels=False, node_size=5)
+        plt.show() 
+                
+        '''
         nb_of_nodes = len(new_G.nodes())
         neighbors = new_G.neighbors(reservoir)
         for neighbor in neighbors:
@@ -408,7 +436,7 @@ def assign_tanks_and_pumps(new_G, G, network_data, new_network_data,id="1"):
                         new_network_data['NO_DEMAND_NODES'].append(new_node_2)
                         s_neighbor = new_node_1
                         neighbor = new_node_2
-        '''
+        
         b=1.5
         for tank in new_network_data['TANKS']:
             path = nx.shortest_path(new_G, source=reservoir, target=tank, weight=None)
@@ -472,6 +500,7 @@ def generate_network_data(new_G,G,network_data,id=""):
 
     #Assign demand
     new_network_data = assign_demand(labeled_new_G, network_data, new_network_data)
+
 
     return new_network_data
 

@@ -23,7 +23,7 @@ import random, sys
 import networkx as nx
 import matplotlib
 matplotlib.use('PDF')
-#import matplotlib.pylab as pylab
+import matplotlib.pylab as pylab
 import pylab
 import pdb, traceback
 import pickle
@@ -527,7 +527,8 @@ def replicate_graph(G, generator_func, num_replicas, params, title_infix='', n_j
         print(getattr(G, 'name', '') + ' ' + title_infix)
         replicas = []
         for replica_idx in range(num_replicas):
-            replica = generator_func(G, params=params)
+            replica = algorithms.generate_graph(G, params=params)
+            print("done")
             replicas.append(replica)
             sys.stdout.write('.')
             sys.stdout.flush()
@@ -541,8 +542,9 @@ def replicate_graph(G, generator_func, num_replicas, params, title_infix='', n_j
     return replicas
 
 
-def replica_vs_original(seed=None, figpath=None, generator_func=None, G=None, params=None, num_replicas = 150, title_infix='', metrics=None, generator = "musketeer_all", intermediates=False, n_jobs=-1, store_replicas=False,graph_name = "Results"):
+def replica_vs_original(seed=None, figpath=None, graph_name = "Generated", generator_func=None, G=None, params=None, num_replicas = 100, title_infix='', metrics=None, generator = "musketeer_all", intermediates=False, n_jobs=-1, store_replicas=False, output_path = "Results"):
     """generate one or more replicas and compare them to the original graph"""
+
     if seed==None:
         seed = npr.randint(1E6)
     print('rand seed: %d'%seed)
@@ -574,21 +576,24 @@ def replica_vs_original(seed=None, figpath=None, generator_func=None, G=None, pa
     print(params)
     print('Metrics:')
     print([metric['name'] for metric in metrics])
+    data = {}
 
-    replicas = replicate_graph(G=G, generator_func=generator_func, num_replicas=num_replicas, params=params, title_infix=title_infix, n_jobs=n_jobs)
-    #replicas = read_all_files(generator)
-    jaccard_edges    = evaluate_similarity(base_graphs=G, graphs=replicas, n_jobs=n_jobs)  #this is actually a mean
+    replicas = read_all_files(output_path +generator+"/")
+    out_dir = output_path + generator +"/"+graph_name+"computation_results"
+    print(out_dir)
+    myfile = open(out_dir+ generator, 'w')
+    #replicas = replicate_graph(G=G, generator_func=generator_func, num_replicas=num_replicas, params=params,
+     #                          title_infix=title_infix, n_jobs=n_jobs)
+    #jaccard_edges    = evaluate_similarity(base_graphs=G, graphs=replicas, n_jobs=n_jobs)  #this is actually a mean
     vals_of_all      = evaluate_metrics(graphs=[G]+replicas, metrics=metrics, n_jobs=n_jobs)
     vals_of_graph    = [metric_data[0]  for metric_data in vals_of_all]
     vals_of_replicas = [metric_data[1:] for metric_data in vals_of_all]
-    replica_statistics, figpath = plot_deviation(vals_of_replicas, vals_of_graph, metrics, figpath, jaccard_edges, title_infix, seed, getattr(G, 'name', ''))
+    #replica_statistics, figpath = plot_deviation(vals_of_replicas, vals_of_graph, metrics, figpath, jaccard_edges, title_infix, seed, getattr(G, 'name', ''))
     #pylab.show()
-    data = {'metrics':[met['name'] for met in metrics], 'name':getattr(G, 'name', ''), 'params':params, 'num_replicas':num_replicas, 'figpath':figpath}
-    data[0] = replica_statistics
-    data[0].update({'vals_of_replicas':vals_of_replicas, 'val_of_models':vals_of_graph, 'avg_jaccard_edges':jaccard_edges})
+    #data = {'metrics':[met['name'] for met in metrics], 'name':getattr(G, 'name', ''), 'params':params, 'num_replicas':num_replicas, 'figpath':figpath}
+    #data[0] = replica_statistics
+    #data[0].update({'vals_of_replicas':vals_of_replicas, 'val_of_models':vals_of_graph, 'avg_jaccard_edges':jaccard_edges})
 
-    out_dir = "/home/varsha/Documents/"+ graph_name +generator
-    myfile = open(out_dir+ timeNow(), 'w')
     i = 0
     for (vals,met) in zip(vals_of_replicas,metrics):
         attribute = met['name'].replace(" ", "_")
@@ -602,9 +607,12 @@ def replica_vs_original(seed=None, figpath=None, generator_func=None, G=None, pa
         i += 1
         myfile.write('\n')
     myfile.write('deleted_edges'+'\t')
+    i=1
     for replica in replicas:
         myfile.write(str(find_deleted(G,replica))+'\t')
-        nx.write_edgelist(replica,out_dir+ timeNow()+".edgelist")
+        #nx.write_edgelist(replica,output_path+generator+'/'+ graph_name+ str(i)+".edgelist")
+        #nx.write_edgelist(replica,output_path+generator+'/'+ str(i)+".edgelist")
+        i+=1
 
     myfile.write('\nnew_edges' + '\t')
     for replica in replicas:
@@ -797,11 +805,13 @@ def statistical_tests(seed=8):
         replica_vs_original(G=base_graph, num_replicas=num_replicas, seed=1, params=params, metrics=metrics, title_infix='musketeer')
 
 def read_all_files(dir):
+    print(dir)
     import os
     replicas = []
+    print(dir)
     files = os.listdir(dir)
     for file in files:
-        tmp = nx.read_gml(dir+file)
+        tmp = nx.read_edgelist(dir+file)
         replica = tmp.to_undirected()
         replicas.append(replica)
     return replicas

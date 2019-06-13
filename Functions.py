@@ -121,6 +121,7 @@ def Res(pipes, pumps,tanks_diam,tanks_max,tanks_min, d ,hStar,Curves,Conn,NoConn
     #d.ENsaveinpfile('non_feasible'+timeNow()+'.inp')
     while tstep > 0:
         ret, t = d.ENrunH()
+        print("return",ret)
         if(ret!=0):
             valid = False
         total_energy = 0
@@ -241,7 +242,8 @@ def Res(pipes, pumps,tanks_diam,tanks_max,tanks_min, d ,hStar,Curves,Conn,NoConn
 
 def Constraint():
     global C
-    print("iteration complete")
+    if(C==0):
+        print("iteration complete")
     return C
 
 

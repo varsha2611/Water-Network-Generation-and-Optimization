@@ -64,6 +64,7 @@ if __name__ == "__main__":
     G, network_data = WDS_services.read_inp_file(input_path)
     #WDS_services.plot_graph(G, network_data)
     new_G = algorithms.generate_graph(G, params=params, planar=True)
+    nx.write_edgelist(new_G, "Generated_network.edges", data=False)
     #print (new_G)
 
     if output_path == None:

@@ -43,8 +43,8 @@ def SetValues(inputFile,id = "",ep = True):
     #d.save_inputfile('temp.inp')
 
     if ep:
-        d.save_inputfile('temp'+id+'.inp')
-        et = EPANetSimulation('temp'+id+'.inp')
+        d.save_inputfile('temp'+str(id)+'.inp')
+        et = EPANetSimulation('temp'+str(id)+'.inp')
         Conn, NoConn = GetConnectionDetails(et)
         return et,hStar,curves, curves,nbOfPipes,nbOfPumps,nbOfTanks,Conn,NoConn,max_elevation
     else:
